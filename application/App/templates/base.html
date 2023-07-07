@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset='utf-8'>
+        <meta http-equiv='X-UA-Compatible' content='IE=edge'>
+        <title>{% block title %}{% endblock %}</title>
+        <meta name='viewport' content='width=device-width, initial-scale=1'>
+        <link rel='stylesheet' type='text/css' media='screen' href="{{ url_for('static', filename='css/main.css') }}">
+        <script src='main.js'></script>
+        {% block contenthead %}
+        {% endblock %}
+    </head>
+<body>
+    <div class="topnav">
+        <a class="active" href="{{url_for('auth.login')}}">Login</a>
+        <a href="{{url_for('predict.predict')}}">Prédiction</a>
+        <a href="{{url_for('auth.signup')}}">SignUp</a>
+        <a href="{{url_for('auth.logout')}}">Logout</a>
+      </div>
+      {% block content %}
+      {% endblock %}
+</body>
+</html>

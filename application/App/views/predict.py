@@ -1,40 +1,58 @@
-from flask import Flask, render_template, request, Blueprint
-import numpy as np
+from flask import render_template, request, Blueprint, flash
+from flask_login import login_required,current_user
 import pandas as pd
 import joblib
-from App.utils import get_metadata
 import os
+from App.forms import PredictionForm
+from App.models import db, Prediction
+# from App import load_user
 
 pred = Blueprint("predict", __name__,
                  template_folder="templates", static_folder="static")
 
 apikey = os.getenv("apikey")
 
-@pred.route('/')
-def index():
-    X_train = joblib.load(open('X_train.joblib', 'rb'))
-    metadata = get_metadata(X_train, csvpath="features_e2.csv")
-    # for val in df_metadata.index:
-    #     print(df_metadata.loc[val,:]["Values"])
-    return render_template('index.html', metadata=metadata)
-
+def save_pred(X_pred: pd.DataFrame):
+    prediction = Prediction(user_id=current_user.id,
+                            VolumeBasement=X_pred["VolumeBasement"],
+                            OverallQual=X_pred["OverallQual"],
+                            AllBathGrd=X_pred["AllBathGrd"],
+                            MSSubClass=X_pred["MSSubClass"],
+                            Neighborhood=X_pred["Neighborhood"],
+                            GarageArea=X_pred["GarageArea"],
+                            BsmtFinSF1=X_pred["BsmtFinSF1"],
+                            YearRemod__Add=X_pred["YearRemod__Add"],
+                            KitchenQual=X_pred["KitchenQual"],
+                            SaleCondition=X_pred["SaleCondition"],
+                            prediction=X_pred["prediction"])
+    db.session.add(prediction)
+    db.session.commit()
+    flash(f"Prediction added successfully!")
 
 @pred.route('/predict', methods=['GET', 'POST'])
+@login_required
 def predict():
-
-    model = joblib.load(open('model_v1.joblib', 'rb'))
+    form = PredictionForm()
+    print(type(form))
+    model = joblib.load(open('model.joblib', 'rb'))
     X_train = joblib.load(open('X_train.joblib', 'rb'))
-    metadata = get_metadata(X_train, csvpath="features_e2.csv")
-    X_predict = {}
+    if form.validate_on_submit():
+        X_pred = {}
+        for col in X_train.columns:
+            # if X_train[col].dtype == "O":
+            X_pred[col] = form[col].data
+            # else:
+                # X_pred[col] = int(form[col].data)
 
-    for col in X_train.columns:
-        if X_train[col].dtype == "O":
-            X_predict[col] = request.form[col]
-        else:
-            X_predict[col] = int(request.form[col])
+        print("-------------------------------------------------------------")
+        print(model.predict(pd.DataFrame(X_pred, index=[0])))
+        pred = model.predict(pd.DataFrame(X_pred, index=[0]))
+        X_pred["prediction"] = pred
+        save_pred(X_pred)
+        return render_template('predict.html', form=form, data=int(pred))
 
-    pred = model.predict(pd.DataFrame(X_predict, index=[0]))
-    return render_template('index.html', metadata=metadata, data=int(pred))
+    return render_template('predict.html', form=form)
+
 
 # @pred.route('/predict', methods=['GET', 'POST'])
 # def predict():
